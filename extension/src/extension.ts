@@ -1,3 +1,6 @@
+// Note: VSCode web extensions do not support the "fs" module
+import * as fs from 'fs';
+import { TextDecoder } from 'util';
 import * as vscode from 'vscode';
 
 const cats = {
@@ -40,7 +43,7 @@ function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
 		enableScripts: true,
 
 		// And restrict the webview to only loading content from our extension's `media` directory.
-		localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+		localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'build')]
 	};
 }
 
@@ -167,48 +170,24 @@ class CatCodingPanel {
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview, catGifPath: string) {
-		// Local path to main script run in the webview
-		const scriptPathOnDisk = vscode.Uri.joinPath(this._extensionUri, 'media', 'main.js');
+		// Load the React app HTML and automatically patch it to be VSCode-compatible.
+		// VSCode requires that all extension assets are loaded from vscode-resource URLs.
+		// The patching code adds the `<base href="https://file+.vscode-resource.vscode-webview.net/.../extension/build/">`
+		// element to the HTML code to fix the asset loading (only works for relative links).
+		// The React app assets are taken from the extension `build` sub-directory.
 
-		// And the uri we use to load this script in the webview
-		const scriptUri = (scriptPathOnDisk).with({ 'scheme': 'vscode-resource' });
+		const indexHtmlFileUri = vscode.Uri.joinPath(this._extensionUri, "build", "index.html");
+		// Note: VSCode web extensions do not support the "fs" module
+		const indexHtmlText = new TextDecoder().decode(fs.readFileSync(indexHtmlFileUri.fsPath));
 
-		// Local path to css styles
-		const styleResetPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'reset.css');
-		const stylesPathMainPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css');
-
-		// Uri to load styles into webview
-		const stylesResetUri = webview.asWebviewUri(styleResetPath);
-		const stylesMainUri = webview.asWebviewUri(stylesPathMainPath);
-
-		// Use a nonce to only allow specific scripts to be run
-		const nonce = getNonce();
-
-		return `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-
-				<!--
-					Use a content security policy to only allow loading images from https or from our extension directory,
-					and only allow scripts that have a specific nonce.
-				-->
-				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}';">
-
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-				<link href="${stylesResetUri}" rel="stylesheet">
-				<link href="${stylesMainUri}" rel="stylesheet">
-
-				<title>Cat Coding</title>
-			</head>
-			<body>
-				<img src="${catGifPath}" width="300" />
-				<h1 id="lines-of-code-counter">0</h1>
-
-				<script nonce="${nonce}" src="${scriptUri}"></script>
-			</body>
-			</html>`;
+		// Setting the base URL for all HTML asset loading (relative links only) to extension/build.
+		const extensionBuildUri = vscode.Uri.joinPath(this._extensionUri, "build");
+		const extensionBuildWebviewUri = webview.asWebviewUri(extensionBuildUri);
+		// ! The trailing slash is important !
+		const extensionBuildWebviewUriString = extensionBuildWebviewUri.toString() + "/";
+		const htmlBaseTagString = `<base href="${extensionBuildWebviewUriString}">`;
+		const modifiedHtmlText = indexHtmlText.replace("<head>", "<head>\n" + htmlBaseTagString);
+		return modifiedHtmlText;
 	}
 }
 
