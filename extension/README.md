@@ -1,4 +1,4 @@
-# Cat Coding — A Webview API Sample
+# React app — A Webview API Sample
 
 Demonstrates VS Code's [webview API](https://code.visualstudio.com/api/extension-guides/webview). This includes:
 
@@ -12,10 +12,6 @@ Demonstrates VS Code's [webview API](https://code.visualstudio.com/api/extension
 - Webview lifecycle and handling dispose.
 - Saving and restoring state when the panel goes into the background.
 - Serialization and persistence across VS Code reboots.
-
-## Demo
-
-![demo](demo.gif)
 
 ## VS Code API
 
@@ -31,4 +27,4 @@ Demonstrates VS Code's [webview API](https://code.visualstudio.com/api/extension
 - `npm run watch` or `npm run compile`
 - `F5` to start debugging
 
-Run the `Cat Coding: Start cat coding session` to create the webview.
+Run the `React webview: Open the React app panel` to create the webview.

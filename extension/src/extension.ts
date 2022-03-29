@@ -3,35 +3,29 @@ import * as fs from 'fs';
 import { TextDecoder } from 'util';
 import * as vscode from 'vscode';
 
-const cats = {
-	'Coding Cat': 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif',
-	'Compiling Cat': 'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif',
-	'Testing Cat': 'https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif'
-};
-
 export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
-		vscode.commands.registerCommand('catCoding.start', () => {
-			CatCodingPanel.createOrShow(context.extensionUri);
+		vscode.commands.registerCommand('reactPanel.start', () => {
+			ReactPanel.createOrShow(context.extensionUri);
 		})
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('catCoding.doRefactor', () => {
-			if (CatCodingPanel.currentPanel) {
-				CatCodingPanel.currentPanel.doRefactor();
+		vscode.commands.registerCommand('reactPanel.postMessage', () => {
+			if (ReactPanel.currentPanel) {
+				ReactPanel.currentPanel.postMessage();
 			}
 		})
 	);
 
 	if (vscode.window.registerWebviewPanelSerializer) {
 		// Make sure we register a serializer in activation event
-		vscode.window.registerWebviewPanelSerializer(CatCodingPanel.viewType, {
+		vscode.window.registerWebviewPanelSerializer(ReactPanel.viewType, {
 			async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any) {
 				console.log(`Got state: ${state}`);
 				// Reset the webview options so we use latest uri for `localResourceRoots`.
 				webviewPanel.webview.options = getWebviewOptions(context.extensionUri);
-				CatCodingPanel.revive(webviewPanel, context.extensionUri);
+				ReactPanel.revive(webviewPanel, context.extensionUri);
 			}
 		});
 	}
@@ -42,21 +36,21 @@ function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
 		// Enable javascript in the webview
 		enableScripts: true,
 
-		// And restrict the webview to only loading content from our extension's `media` directory.
+		// And restrict the webview to only loading content from our extension's `build` directory.
 		localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'build')]
 	};
 }
 
 /**
- * Manages cat coding webview panels
+ * Manages react webview panels
  */
-class CatCodingPanel {
+class ReactPanel {
 	/**
 	 * Track the currently panel. Only allow a single panel to exist at a time.
 	 */
-	public static currentPanel: CatCodingPanel | undefined;
+	public static currentPanel: ReactPanel | undefined;
 
-	public static readonly viewType = 'catCoding';
+	public static readonly viewType = 'reactPanel';
 
 	private readonly _panel: vscode.WebviewPanel;
 	private readonly _extensionUri: vscode.Uri;
@@ -68,24 +62,24 @@ class CatCodingPanel {
 			: undefined;
 
 		// If we already have a panel, show it.
-		if (CatCodingPanel.currentPanel) {
-			CatCodingPanel.currentPanel._panel.reveal(column);
+		if (ReactPanel.currentPanel) {
+			ReactPanel.currentPanel._panel.reveal(column);
 			return;
 		}
 
 		// Otherwise, create a new panel.
 		const panel = vscode.window.createWebviewPanel(
-			CatCodingPanel.viewType,
-			'Cat Coding',
+			ReactPanel.viewType,
+			'React app panel',
 			column || vscode.ViewColumn.One,
 			getWebviewOptions(extensionUri),
 		);
 
-		CatCodingPanel.currentPanel = new CatCodingPanel(panel, extensionUri);
+		ReactPanel.currentPanel = new ReactPanel(panel, extensionUri);
 	}
 
 	public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
-		CatCodingPanel.currentPanel = new CatCodingPanel(panel, extensionUri);
+		ReactPanel.currentPanel = new ReactPanel(panel, extensionUri);
 	}
 
 	private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
@@ -124,14 +118,14 @@ class CatCodingPanel {
 		);
 	}
 
-	public doRefactor() {
+	public postMessage() {
 		// Send a message to the webview webview.
 		// You can send any JSON serializable data.
-		this._panel.webview.postMessage({ command: 'refactor' });
+		this._panel.webview.postMessage({ command: 'someCommand' });
 	}
 
 	public dispose() {
-		CatCodingPanel.currentPanel = undefined;
+		ReactPanel.currentPanel = undefined;
 
 		// Clean up our resources
 		this._panel.dispose();
@@ -145,31 +139,11 @@ class CatCodingPanel {
 	}
 
 	private _update() {
-		const webview = this._panel.webview;
-
-		// Vary the webview's content based on where it is located in the editor.
-		switch (this._panel.viewColumn) {
-			case vscode.ViewColumn.Two:
-				this._updateForCat(webview, 'Compiling Cat');
-				return;
-
-			case vscode.ViewColumn.Three:
-				this._updateForCat(webview, 'Testing Cat');
-				return;
-
-			case vscode.ViewColumn.One:
-			default:
-				this._updateForCat(webview, 'Coding Cat');
-				return;
-		}
+		this._panel.title = "React panel";
+		this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
 	}
 
-	private _updateForCat(webview: vscode.Webview, catName: keyof typeof cats) {
-		this._panel.title = catName;
-		this._panel.webview.html = this._getHtmlForWebview(webview, cats[catName]);
-	}
-
-	private _getHtmlForWebview(webview: vscode.Webview, catGifPath: string) {
+	private _getHtmlForWebview(webview: vscode.Webview) {
 		// Load the React app HTML and automatically patch it to be VSCode-compatible.
 		// VSCode requires that all extension assets are loaded from vscode-resource URLs.
 		// The patching code adds the `<base href="https://file+.vscode-resource.vscode-webview.net/.../extension/build/">`
