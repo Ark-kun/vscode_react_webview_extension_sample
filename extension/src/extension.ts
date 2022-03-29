@@ -1,6 +1,3 @@
-// Note: VSCode web extensions do not support the "fs" module
-import * as fs from "fs";
-import { TextDecoder } from "util";
 import * as vscode from "vscode";
 
 export function activate(context: vscode.ExtensionContext) {
@@ -141,12 +138,14 @@ class ReactPanel {
     }
   }
 
-  private _update() {
+  private async _update() {
     this._panel.title = "React panel";
-    this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
+    this._panel.webview.html = await this._getHtmlForWebview(
+      this._panel.webview
+    );
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview) {
+  private async _getHtmlForWebview(webview: vscode.Webview) {
     // Load the React app HTML and automatically patch it to be VSCode-compatible.
     // VSCode requires that all extension assets are loaded from vscode-resource URLs.
     // The patching code adds the `<base href="https://file+.vscode-resource.vscode-webview.net/.../extension/build/">`
@@ -158,10 +157,11 @@ class ReactPanel {
       "build",
       "index.html"
     );
-    // Note: VSCode web extensions do not support the "fs" module
-    const indexHtmlText = new TextDecoder().decode(
-      fs.readFileSync(indexHtmlFileUri.fsPath)
-    );
+
+    // VSCode web extensions do not support the "fs" module.
+    // So we use vscode.workspace.fs.readFile (which is async).
+    const indexHtmlData = await vscode.workspace.fs.readFile(indexHtmlFileUri);
+    const indexHtmlText = new TextDecoder().decode(indexHtmlData).toString();
 
     // Setting the base URL for all HTML asset loading (relative links only) to extension/build.
     const extensionBuildUri = vscode.Uri.joinPath(this._extensionUri, "build");
