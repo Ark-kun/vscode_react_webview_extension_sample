@@ -37,7 +37,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "buildReactApp": "cd .. && npm run build && shx rm -rf extension/build && shx cp -r build extension/",
+    "buildReactApp-help": "echo Sets PUBLIC_URL to allow the HTML base element. This change makes the generated asset URLs relative: changes `/static/*` to `./static/*`. This way the URLs become affected by `<base href=\"https://file+.vscode-resource.vscode-webview.net/...\">`.",
+    "buildReactApp": "cd .. && cross-env-shell PUBLIC_URL=./ BUILD_PATH=$INIT_CWD/build npm run build",
     "precompile": "npm run buildReactApp",
     "compile": "tsc -p ./",
     "lint": "eslint . --ext .ts,.tsx",
@@ -50,8 +51,8 @@
     "@types/vscode-webview": "^1.57.0",
     "@typescript-eslint/eslint-plugin": "^4.16.0",
     "@typescript-eslint/parser": "^4.16.0",
+    "cross-env": "^7.0.3",
     "eslint": "^7.21.0",
-    "shx": "^0.3.4",
     "typescript": "^4.5.5"
   }
 }
