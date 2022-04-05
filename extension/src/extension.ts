@@ -145,7 +145,10 @@ class ReactPanel {
     );
   }
 
-  private async _getHtmlForWebview(webview: vscode.Webview) {
+  private async _getHtmlForWebview(
+    webview: vscode.Webview,
+    useContentSecurityPolicy = false
+  ) {
     // Load the React app HTML and automatically patch it to be VSCode-compatible.
     // VSCode requires that all extension assets are loaded from vscode-resource URLs.
     // The patching code adds the `<base href="https://file+.vscode-resource.vscode-webview.net/.../extension/build/">`
@@ -170,10 +173,24 @@ class ReactPanel {
     const extensionBuildWebviewUriString =
       extensionBuildWebviewUri.toString() + "/";
     const htmlBaseTagString = `<base href="${extensionBuildWebviewUriString}">`;
-    const modifiedHtmlText = indexHtmlText.replace(
+    let modifiedHtmlText = indexHtmlText.replace(
       "<head>",
       "<head>\n" + htmlBaseTagString
     );
+    if (useContentSecurityPolicy) {
+      const nonce = getNonce();
+      const cspTermList = [
+        "default-src 'none'",
+        `img-src ${webview.cspSource}`,
+        `style-src ${webview.cspSource}`,
+        `script-src 'nonce-${nonce}'`,
+      ];
+      const cspContent = cspTermList.join("; ");
+      const cspTagString = `<meta http-equiv="Content-Security-Policy" content="${cspContent}">`;
+      modifiedHtmlText = modifiedHtmlText
+        .replace("<head>", "<head>\n" + cspTagString + "\n" + cspTagString)
+        .replace(/<script/g, `<script nonce="${nonce}"`);
+    }
     return modifiedHtmlText;
   }
 }
